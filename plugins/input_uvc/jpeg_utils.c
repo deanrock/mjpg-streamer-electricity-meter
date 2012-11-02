@@ -162,6 +162,12 @@ int compress_yuyv_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int 
     jpeg_start_compress(&cinfo, TRUE);
 
     z = 0;
+    int ratio=0;
+    int count=0;
+    
+    int point_x=120;
+    int point_y=72;
+    //DBG("%d width", vd->width);
     while(cinfo.next_scanline < vd->height) {
         int x;
         unsigned char *ptr = line_buffer;
@@ -169,7 +175,7 @@ int compress_yuyv_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int 
         for(x = 0; x < vd->width; x++) {
             int r, g, b;
             int y, u, v;
-
+	    int o;
             if(!z)
                 y = yuyv[0] << 8;
             else
@@ -178,10 +184,29 @@ int compress_yuyv_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int 
             v = yuyv[3] - 128;
 
             r = (y + (359 * v)) >> 8;
-            g = (y - (88 * u) - (183 * v)) >> 8;
-            b = (y + (454 * u)) >> 8;
+            
+	    //g = (y - (88 * u) - (183 * v)) >> 8;
+	    g=0;
+            
+	    b=0;
+	    
+	    //120x72
+	    //b = (y + (454 * u)) >> 8;
 
-            *(ptr++) = (r > 255) ? 255 : ((r < 0) ? 0 : r);
+            if(cinfo.next_scanline >= point_y-10 && cinfo.next_scanline <= point_y+10 &&
+		x>=point_x-10 && x<=point_x+10
+	    ) {
+	    o = (r > 255) ? 255 : ((r < 0) ? 0 : r);
+	    ratio+=o;
+	    count++;
+	    
+	    *(ptr++) = o;
+	    }
+	    else{
+	      *(ptr++) = 0;
+	    }
+	    
+	    
             *(ptr++) = (g > 255) ? 255 : ((g < 0) ? 0 : g);
             *(ptr++) = (b > 255) ? 255 : ((b < 0) ? 0 : b);
 
@@ -190,10 +215,13 @@ int compress_yuyv_to_jpeg(struct vdIn *vd, unsigned char *buffer, int size, int 
                 yuyv += 4;
             }
         }
+       
 
         row_pointer[0] = line_buffer;
         jpeg_write_scanlines(&cinfo, row_pointer, 1);
     }
+    
+    DBG("ratio: %d\n", ratio/count);
 
     jpeg_finish_compress(&cinfo);
     jpeg_destroy_compress(&cinfo);
